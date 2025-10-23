@@ -4,7 +4,7 @@ on:
   push:
     branches: [gitactions]
   pull_request:
-    branches: [gitactions]
+    branches-ignore: [gitactions]
 
 jobs:
   build-and-test:
