@@ -4,11 +4,6 @@ on:
   workflow_dispatch:
   release:
     types: [published]
-  workflow_run:
-    workflows: ["CI"]
-    branches: [docker]
-    types:
-      - completed
 
 jobs:
   deploy:
