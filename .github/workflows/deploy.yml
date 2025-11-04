@@ -4,10 +4,19 @@ on:
   workflow_dispatch:
   release:
     types: [published]
+  workflow_run:
+    workflows: ["CI"]
+    branches: [docker]
+    types:
+      - completed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout code
@@ -25,25 +34,52 @@ jobs:
 
             APP_DIR="/home/lisich/Desktop/OIS_Csharp-example"
             LOG_FILE="/home/lisich/Desktop/deploy.log"
-            SERVICE="csharp-example"
+            CONTAINER_NAME="ois-csharp-app"
+            IMAGE_NAME="ghcr.io/kosenkomichael/ois-csharp-example:latest"
 
-            echo "=== DEPLOYMENT STARTED ===" > $LOG_FILE
+            echo "=== DOCKER DEPLOYMENT STARTED ===" > $LOG_FILE
             echo "Time: $(date)" >> $LOG_FILE
 
-            cd "$APP_DIR"
+            # Логинимся в GitHub Container Registry
+            echo "🔑 Logging in to GitHub Container Registry..." | tee -a $LOG_FILE
+            echo "${{ secrets.TOKEN }}" | sudo docker login ghcr.io -u kosenkomichael --password-stdin >> $LOG_FILE 2>&1
 
-            echo "📦 Pulling latest code..." | tee -a $LOG_FILE
-            git pull
+            # Останавливаем и удаляем старый контейнер
+            echo "🛑 Stopping old container..." | tee -a $LOG_FILE
+            sudo docker stop $CONTAINER_NAME >> $LOG_FILE 2>&1 || true
+            sudo docker rm $CONTAINER_NAME >> $LOG_FILE 2>&1 || true
 
-            cd "ExampleWebService"
+            # Удаляем старый образ для экономии места
+            echo "🗑️ Removing old image..." | tee -a $LOG_FILE
+            sudo docker rmi $IMAGE_NAME >> $LOG_FILE 2>&1 || true
 
-            echo "🔧 Building project..." | tee -a $LOG_FILE
-            dotnet build --configuration Release >> $LOG_FILE 2>&1
+            # Скачиваем новый образ из GitHub Registry
+            echo "📥 Pulling new Docker image..." | tee -a $LOG_FILE
+            sudo docker pull $IMAGE_NAME >> $LOG_FILE 2>&1
 
-            echo "🚀 Restarting service..." | tee -a $LOG_FILE
-            sudo /usr/bin/systemctl restart $SERVICE
+            # Запускаем новый контейнер
+            echo "🚀 Starting new container..." | tee -a $LOG_FILE
+            sudo docker run -d \
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              -p 8181:8181 \
+              $IMAGE_NAME >> $LOG_FILE 2>&1
 
-            echo "✅ Service status:" | tee -a $LOG_FILE
-            sudo systemctl status $SERVICE --no-pager >> $LOG_FILE
+            # Проверяем статус контейнера
+            echo "✅ Container status:" | tee -a $LOG_FILE
+            sudo docker ps --filter "name=$CONTAINER_NAME" >> $LOG_FILE
 
-            echo "🎉 DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
+            # Ждем запуска приложения и проверяем здоровье
+            echo "⏳ Waiting for application to start..." | tee -a $LOG_FILE
+            sleep 10
+
+            echo "🏥 Health check..." | tee -a $LOG_FILE
+            curl -f http://localhost:8181/api/Words >> $LOG_FILE 2>&1 && \
+              echo "✅ Health check passed" | tee -a $LOG_FILE || \
+              echo "⚠️ Health check failed, but container is running" | tee -a $LOG_FILE
+
+            # Показываем логи контейнера (последние 10 строк)
+            echo "📋 Container logs (last 10 lines):" | tee -a $LOG_FILE
+            sudo docker logs $CONTAINER_NAME --tail 10 >> $LOG_FILE
+
+            echo "🎉 DOCKER DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
