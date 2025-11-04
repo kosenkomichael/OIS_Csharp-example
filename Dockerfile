@@ -5,11 +5,11 @@ EXPOSE 8181
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY ["ExampleWebService/ExampleWebService.csproj", "ExampleWebService/"]
+COPY ["OIS_Csharp-example/ExampleWebService/ExampleWebService.csproj", "ExampleWebService/"]
 RUN dotnet restore "ExampleWebService/ExampleWebService.csproj"
 
 COPY . .
-WORKDIR "/src/ExampleWebService"
+WORKDIR "/src/OIS_Csharp-example/ExampleWebService"
 RUN dotnet build "ExampleWebService.csproj" -c Release -o /app/build
 
 FROM build AS publish
