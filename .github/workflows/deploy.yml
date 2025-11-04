@@ -81,7 +81,7 @@ jobs:
 
             # Ждем запуска приложения
             echo "⏳ Waiting for application to start..." | tee -a $LOG_FILE
-            sleep 15
+            sleep 5
 
             # Проверяем логи контейнера
             echo "📋 Container logs:" | tee -a $LOG_FILE
