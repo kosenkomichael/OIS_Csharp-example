@@ -1,0 +1,73 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="/home/lisich/Desktop/OIS_Csharp-example"
+            LOG_FILE="/home/lisich/Desktop/deploy.log"
+            IMAGE_NAME="ghcr.io/kosenkomichael/ois-csharp-example:latest"
+
+            echo "=== DOCKER COMPOSE DEPLOYMENT STARTED ===" > $LOG_FILE
+            echo "Time: $(date)" >> $LOG_FILE
+
+            # Переходим в директорию приложения
+            cd $APP_DIR
+
+            # Логинимся в GitHub Container Registry
+            echo "🔑 Logging in to GitHub Container Registry..." | tee -a $LOG_FILE
+            echo "${{ secrets.TOKEN }}" | sudo docker login ghcr.io -u kosenkomichael --password-stdin >> $LOG_FILE 2>&1
+
+            # Скачиваем образ (если используем image вместо локального билда)
+            echo "📥 Pulling latest image..." | tee -a $LOG_FILE
+            sudo docker pull $IMAGE_NAME >> $LOG_FILE 2>&1
+
+            # Останавливаем старые контейнеры и удаляем сервисы
+            echo "🛑 Bringing down old compose stack..." | tee -a $LOG_FILE
+            sudo docker compose down >> $LOG_FILE 2>&1 || true
+
+            # Запускаем новый compose стек
+            echo "🚀 Starting new compose stack..." | tee -a $LOG_FILE
+            sudo docker compose up -d >> $LOG_FILE 2>&1
+
+            # Проверяем статус контейнеров
+            echo "✅ Containers status:" | tee -a $LOG_FILE
+            sudo docker compose ps >> $LOG_FILE
+
+            # Проверяем логи основного приложения
+            echo "📋 Application logs:" | tee -a $LOG_FILE
+            sudo docker compose logs --tail 20 csharp-app >> $LOG_FILE
+
+            # Проверяем здоровье приложения
+            echo "🏥 Health check..." | tee -a $LOG_FILE
+            if curl -f http://localhost:8181/api/Words >> $LOG_FILE 2>&1; then
+              echo "✅ Health check passed" | tee -a $LOG_FILE
+            else
+              echo "⚠️ Health check failed, checking container logs..." | tee -a $LOG_FILE
+              sudo docker compose logs >> $LOG_FILE 2>&1
+            fi
+
+            echo "🎉 DOCKER COMPOSE DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
