@@ -22,22 +22,33 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/home/lisich/Desktop/OIS_Csharp-example"
             LOG_FILE="/home/lisich/Desktop/deploy.log"
+            COMPOSE_FILE="~/OIS_Csharp-example/docker-compose.yml"
 
             echo "=== DOCKER COMPOSE DEPLOYMENT STARTED ===" > $LOG_FILE
-            cd $APP_DIR
+
+            # Log in to GitHub Container Registry
+            echo "🔑 Logging in to GHCR..." | tee -a $LOG_FILE
+            echo "${{ secrets.TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin >> $LOG_FILE 2>&1
 
             # Pull latest images
-            docker-compose pull >> $LOG_FILE 2>&1
+            echo "📥 Pulling latest Docker images..." | tee -a $LOG_FILE
+            docker compose -f $COMPOSE_FILE pull >> $LOG_FILE 2>&1
 
             # Stop old containers and remove
-            docker-compose down >> $LOG_FILE 2>&1
+            echo "🛑 Stopping and removing old containers..." | tee -a $LOG_FILE
+            docker compose -f $COMPOSE_FILE down >> $LOG_FILE 2>&1
 
             # Start new containers
-            docker-compose up -d >> $LOG_FILE 2>&1
+            echo "🚀 Starting new containers..." | tee -a $LOG_FILE
+            docker compose -f $COMPOSE_FILE up -d >> $LOG_FILE 2>&1
 
-            # Check status
-            docker-compose ps >> $LOG_FILE
+            # Check containers status
+            echo "📋 Containers status:" | tee -a $LOG_FILE
+            docker compose -f $COMPOSE_FILE ps >> $LOG_FILE 2>&1
 
-            echo "🎉 DEPLOYMENT COMPLETED $(date)" >> $LOG_FILE
+            # Cleanup unused images
+            echo "🧹 Cleaning up unused Docker images..." | tee -a $LOG_FILE
+            docker image prune -f >> $LOG_FILE 2>&1
+
+            echo "🎉 DOCKER COMPOSE DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
