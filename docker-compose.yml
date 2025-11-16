@@ -14,9 +14,9 @@ services:
     image: postgres:15
     container_name: ois-csharp-db
     environment:
-      POSTGRES_DB: exampledb
-      POSTGRES_USER: exampleuser
-      POSTGRES_PASSWORD: examplepass
+      POSTGRES_DB: db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
