@@ -22,27 +22,26 @@ jobs:
           script: |
             set -e
 
-            LOG_FILE="~/deploy.log"
-            APP_DIR="~/OIS_Csharp-example"
+            LOG_FILE="/home/lisich/Desktop/deploy.log"
+            APP_DIR="/home/lisich/Desktop/OIS_Csharp-example"
             COMPOSE_FILE="$APP_DIR/docker-compose.yml"
-            IMAGE_NAME="ghcr.io/kosenkomichael/ois-csharp-example:latest"
 
             echo "=== DOCKER COMPOSE DEPLOYMENT STARTED ===" > $LOG_FILE
             echo "Time: $(date)" >> $LOG_FILE
 
-            # Переходим в директорию приложения
-            cd $APP_DIR
-
-            # Log in to GitHub Container Registry
+            # Логинимся в GHCR
             echo "🔑 Logging in to GHCR..." | tee -a $LOG_FILE
             echo "${{ secrets.TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin >> $LOG_FILE 2>&1
+
+            # Переходим в директорию приложения
+            cd $APP_DIR
 
             # Pull latest images
             echo "📥 Pulling latest Docker images..." | tee -a $LOG_FILE
             docker compose -f $COMPOSE_FILE pull >> $LOG_FILE 2>&1
 
             # Stop old containers and remove
-            echo "🛑 Stopping old containers..." | tee -a $LOG_FILE
+            echo "🛑 Stopping and removing old containers..." | tee -a $LOG_FILE
             docker compose -f $COMPOSE_FILE down >> $LOG_FILE 2>&1
 
             # Start new containers
@@ -56,14 +55,5 @@ jobs:
             # Cleanup unused images
             echo "🧹 Cleaning up unused Docker images..." | tee -a $LOG_FILE
             docker image prune -f >> $LOG_FILE 2>&1
-
-            # Health check
-            echo "🏥 Health check..." | tee -a $LOG_FILE
-            if curl -f http://localhost:8181/api/Words >> $LOG_FILE 2>&1; then
-              echo "✅ Health check passed" | tee -a $LOG_FILE
-            else
-              echo "⚠️ Health check failed, checking logs..." | tee -a $LOG_FILE
-              docker compose -f $COMPOSE_FILE logs >> $LOG_FILE 2>&1
-            fi
 
             echo "🎉 DOCKER COMPOSE DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
