@@ -1,27 +1,25 @@
 services:
-  web:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: exampleuser
+      POSTGRES_PASSWORD: examplepass
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  csharp-app:
     image: ghcr.io/kosenkomichael/ois-csharp-example:latest
-    container_name: ois-csharp-app
     ports:
       - "8181:8181"
     environment:
-      - ConnectionStrings__Postgres=Host=db;User Id=postgres;Password=123;Database=postgres;Port=5432;Pooling=false
+      - ConnectionStrings__Postgres=Host=db;User Id=exampleuser;Password=examplepass;Database=postgres;Port=5432;Pooling=false
     depends_on:
       - db
     restart: unless-stopped
 
-  db:
-    image: postgres:15
-    container_name: ois-csharp-db
-    environment:
-      POSTGRES_DB: db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
 volumes:
-  pgdata:
+  db-data:
