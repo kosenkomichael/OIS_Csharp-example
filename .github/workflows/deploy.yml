@@ -22,46 +22,48 @@ jobs:
           script: |
             set -e
 
-            LOG_FILE="/home/lisich/Desktop/deploy.log"
-            APP_DIR="/home/lisich/OIS_Csharp-example"   # абсолютный путь к проекту
+            LOG_FILE="~/deploy.log"
+            APP_DIR="~/OIS_Csharp-example"
             COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+            IMAGE_NAME="ghcr.io/kosenkomichael/ois-csharp-example:latest"
 
             echo "=== DOCKER COMPOSE DEPLOYMENT STARTED ===" > $LOG_FILE
             echo "Time: $(date)" >> $LOG_FILE
 
+            # Переходим в директорию приложения
             cd $APP_DIR
 
-            # Логинимся в GHCR
-            echo "🔑 Logging in to GitHub Container Registry..." | tee -a $LOG_FILE
-            if ! echo "${{ secrets.TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin >> $LOG_FILE 2>&1; then
-              echo "❌ GHCR login failed" | tee -a $LOG_FILE
-              exit 1
-            fi
+            # Log in to GitHub Container Registry
+            echo "🔑 Logging in to GHCR..." | tee -a $LOG_FILE
+            echo "${{ secrets.TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin >> $LOG_FILE 2>&1
 
-            # Пуллим образ
+            # Pull latest images
             echo "📥 Pulling latest Docker images..." | tee -a $LOG_FILE
-            if ! docker compose -f $COMPOSE_FILE pull >> $LOG_FILE 2>&1; then
-              echo "❌ Docker compose pull failed" | tee -a $LOG_FILE
-              exit 1
-            fi
+            docker compose -f $COMPOSE_FILE pull >> $LOG_FILE 2>&1
 
-            # Останавливаем старые контейнеры
-            echo "🛑 Stopping and removing old containers..." | tee -a $LOG_FILE
-            docker compose -f $COMPOSE_FILE down >> $LOG_FILE 2>&1 || true
+            # Stop old containers and remove
+            echo "🛑 Stopping old containers..." | tee -a $LOG_FILE
+            docker compose -f $COMPOSE_FILE down >> $LOG_FILE 2>&1
 
-            # Запускаем новый стек
+            # Start new containers
             echo "🚀 Starting new containers..." | tee -a $LOG_FILE
-            if ! docker compose -f $COMPOSE_FILE up -d >> $LOG_FILE 2>&1; then
-              echo "❌ Docker compose up failed" | tee -a $LOG_FILE
-              exit 1
-            fi
+            docker compose -f $COMPOSE_FILE up -d >> $LOG_FILE 2>&1
 
-            # Проверяем статус контейнеров
+            # Check containers status
             echo "📋 Containers status:" | tee -a $LOG_FILE
             docker compose -f $COMPOSE_FILE ps >> $LOG_FILE 2>&1
 
-            # Чистим неиспользуемые образы
+            # Cleanup unused images
             echo "🧹 Cleaning up unused Docker images..." | tee -a $LOG_FILE
             docker image prune -f >> $LOG_FILE 2>&1
+
+            # Health check
+            echo "🏥 Health check..." | tee -a $LOG_FILE
+            if curl -f http://localhost:8181/api/Words >> $LOG_FILE 2>&1; then
+              echo "✅ Health check passed" | tee -a $LOG_FILE
+            else
+              echo "⚠️ Health check failed, checking logs..." | tee -a $LOG_FILE
+              docker compose -f $COMPOSE_FILE logs >> $LOG_FILE 2>&1
+            fi
 
             echo "🎉 DOCKER COMPOSE DEPLOYMENT COMPLETED $(date)" | tee -a $LOG_FILE
