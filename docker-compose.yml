@@ -9,7 +9,7 @@ services:
     ports:
       - "8181:8181"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=db;Database=exampledb;Username=exampleuser;Password=examplepass
+      - ConnectionStrings__Postgres=Host=db;User Id=postgres;Password=123;Database=postgres;Port=5432;Pooling=false
     depends_on:
       - db
     restart: unless-stopped
