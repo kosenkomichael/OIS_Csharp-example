@@ -24,7 +24,7 @@ jobs:
 
             LOG_FILE="/home/lisich/Desktop/deploy.log"
             APP_DIR="/home/lisich/Desktop/OIS_Csharp-example"
-            COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+            COMPOSE_FILE="/home/lisich/Desktop/OIS_Csharp-example/docker-compose.yml"
 
             echo "=== DOCKER COMPOSE DEPLOYMENT STARTED ===" > $LOG_FILE
             echo "Time: $(date)" >> $LOG_FILE
