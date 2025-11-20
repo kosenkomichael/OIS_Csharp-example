@@ -44,9 +44,19 @@ jobs:
             echo "🛑 Stopping and removing old containers..." | tee -a $LOG_FILE
             docker compose -f $COMPOSE_FILE down >> $LOG_FILE 2>&1
 
+            # Kill processes that may still occupy ports
+            echo "🔪 Killing processes on ports 5432 and 8181 (if any)..." | tee -a $LOG_FILE
+            sudo kill -9 $(sudo lsof -t -i:5432) 2>/dev/null || true
+            sudo kill -9 $(sudo lsof -t -i:8181) 2>/dev/null || true
+
+            # Remove old DB volume
+            echo "🧨 Removing old DB volume..." | tee -a $LOG_FILE
+            docker volume rm ois_csharp-example_db-data 2>/dev/null || true
+
             # Start new containers
             echo "🚀 Starting new containers..." | tee -a $LOG_FILE
             docker compose -f $COMPOSE_FILE up -d >> $LOG_FILE 2>&1
+
 
             # Check containers status
             echo "📋 Containers status:" | tee -a $LOG_FILE
