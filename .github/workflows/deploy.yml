@@ -38,7 +38,7 @@ jobs:
 
             # Pull latest images
             echo "📥 Pulling latest Docker images..." | tee -a $LOG_FILE
-            docker compose -f $COMPOSE_FILE pull >> $LOG_FILE 2>&1
+            docker compose -f $COMPOSE_FILE pull --progress=plain >> $LOG_FILE 2>&1
 
             # Stop old containers and remove
             echo "🛑 Stopping and removing old containers..." | tee -a $LOG_FILE
